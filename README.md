@@ -8,7 +8,7 @@ Turns the vocal melody of an MP3 into a simple sheet-music PDF (single melody li
 
 ## Use
 1. Choose one or more MP3s, pick the song.
-2. Adjust settings if needed (voice type, tempo, time signature, start/end seconds to skip an intro).
+2. Pick who is singing (Auto works for most songs). Under More options you can set tempo, beats per measure, and start/end seconds to skip an intro.
 3. Tap **Create sheet music**, then **Save PDF** or **Share PDF**.
 4. Add lyrics later: paste them in the Lyrics box (one line per staff) and tap the button again. No re-analysis needed.
 

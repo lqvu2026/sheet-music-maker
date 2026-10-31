@@ -64,41 +64,32 @@ details summary{cursor:pointer;font-weight:600;padding:2px 0}
     </div>
     <label for="title">Title on the sheet</label>
     <input id="title" type="text" placeholder="Song title">
-    <p class="note">Works best when the voice is clear. Loud instruments can add wrong notes, so pick a section with a clean vocal if the result looks messy.</p>
+    <p class="note">Works best with a clear solo voice.</p>
   </div>
 
   <div class="card">
-    <details open>
-      <summary>Settings</summary>
-      <label for="voice">Voice</label>
-      <select id="voice">
-        <option value="auto">Auto</option>
-        <option value="high">Higher voice (women, children)</option>
-        <option value="low">Lower voice (men)</option>
-      </select>
+    <label for="voice">Who is singing?</label>
+    <select id="voice">
+      <option value="auto">Auto</option>
+      <option value="high">Higher voice (women, children)</option>
+      <option value="low">Lower voice (men)</option>
+    </select>
+    <label for="lyrics">Lyrics (optional, one line per staff, can be added later)</label>
+    <textarea id="lyrics" placeholder="Paste your lyrics here, or leave empty to get a blank line under each staff."></textarea>
+    <details style="margin-top:14px">
+      <summary>More options</summary>
       <div class="row">
         <div><label for="bpm">Tempo (BPM)</label>
           <div class="tempo"><input id="bpm" type="number" inputmode="numeric" min="40" max="220" placeholder="Auto">
           <button type="button" class="alt small" id="half" title="Half tempo">&frac12;&times;</button>
           <button type="button" class="alt small" id="double" title="Double tempo">2&times;</button></div></div>
-        <div><label for="timesig">Time signature</label>
+        <div><label for="timesig">Beats per measure</label>
           <select id="timesig"><option value="4/4">4/4</option><option value="3/4">3/4</option><option value="2/4">2/4</option><option value="6/8">6/8</option></select></div>
       </div>
-      <div class="row">
-        <div><label for="detail">Note detail</label>
-          <select id="detail"><option value="2">Simple (eighth notes)</option><option value="1">Detailed (sixteenths)</option></select></div>
-        <div><label for="key">Key</label>
-          <select id="key"><option value="auto">Auto</option></select></div>
-      </div>
-      <label for="sens">Sensitivity: <span id="sensVal">3</span> <span style="color:var(--mute)">(higher = more notes, more mistakes)</span></label>
-      <input id="sens" type="range" min="1" max="5" step="1" value="3">
       <div class="row">
         <div><label for="start">Start (seconds)</label><input id="start" type="number" inputmode="decimal" min="0" placeholder="0"></div>
         <div><label for="end">End (seconds)</label><input id="end" type="number" inputmode="decimal" min="0" placeholder="whole song"></div>
       </div>
-      <label class="check"><input id="lyricLines" type="checkbox" checked> Leave a line for lyrics under each staff</label>
-      <label for="lyrics">Lyrics (optional, one line of text goes under each staff)</label>
-      <textarea id="lyrics" placeholder="You can add your lyrics later and tap the button again."></textarea>
     </details>
   </div>
 
@@ -665,19 +656,8 @@ return{analyze,buildScore,layout,renderPage,buildPDF,b64ToBytes,PW,PH,keyName,MA
 const $=id=>document.getElementById(id);
 const st={files:[],cacheKey:'',raw:null,detBpm:100,medianMidi:60,pdf:null,pdfName:'sheet.pdf',score:null,ac:null,urls:[]};
 
-// key list
-(function(){
-  const sel=$('key');
-  for(let f=-6;f<=6;f++){
-    const o=document.createElement('option');o.value=f;
-    const mj=CORE.MAJOR_NAMES[String(f)],mn={'-6':'E flat','-5':'B flat','-4':'F','-3':'C','-2':'G','-1':'D','0':'A','1':'E','2':'B','3':'F sharp','4':'C sharp','5':'G sharp','6':'D sharp'}[String(f)];
-    o.textContent=mj+' major / '+mn+' minor';sel.appendChild(o);
-  }
-})();
-
 const setStatus=(t,err)=>{const s=$('status');s.textContent=t||'';s.className=err?'err':'';};
 const setBar=p=>{$('bar').style.display=p==null?'none':'block';$('barFill').style.width=Math.round((p||0)*100)+'%';};
-$('sens').addEventListener('input',()=>$('sensVal').textContent=$('sens').value);
 
 function fillSongs(){
   const sel=$('song');sel.innerHTML='';
@@ -721,7 +701,7 @@ async function run(){
   $('go').disabled=true;stopPlay();
   try{
     const start=parseFloat($('start').value)||0,end=parseFloat($('end').value)||0;
-    const voice=$('voice').value,sens=+$('sens').value;
+    const voice=$('voice').value,sens=3;
     const key=[file.name,file.size,voice,sens,start,end].join('|');
     if(st.cacheKey!==key){
       setStatus('Reading the song…');setBar(0.02);await sleep();
@@ -746,12 +726,12 @@ async function makeSheet(){
   const bpm=Math.max(40,Math.min(220,parseFloat($('bpm').value)||st.detBpm));
   const voice=$('voice').value;
   const clefShift=voice==='low'?12:(voice==='high'?0:(st.medianMidi<57?12:0));
-  const sc=CORE.buildScore(st.raw,{bpm,timesig:$('timesig').value,step:+$('detail').value,fifths:$('key').value,clefShift});
+  const sc=CORE.buildScore(st.raw,{bpm,timesig:$('timesig').value,step:2,fifths:'auto',clefShift});
   if(!sc)throw new Error('No notes to write.');
   st.score=sc;
   const lines=$('lyrics').value.split(/\r?\n/).map(s=>s.trim());
-  const opt={title:$('title').value.trim()||'Untitled',lyricLines:$('lyricLines').checked,lyricsArr:lines.some(Boolean)?lines.filter((s,i)=>true):null};
-  if(opt.lyricsArr){while(opt.lyricsArr.length&&!opt.lyricsArr[opt.lyricsArr.length-1])opt.lyricsArr.pop();if(!$('lyricLines').checked)opt.lyricLines=true;}
+  const opt={title:$('title').value.trim()||'Untitled',lyricLines:true,lyricsArr:lines.some(Boolean)?lines:null};
+  if(opt.lyricsArr){while(opt.lyricsArr.length&&!opt.lyricsArr[opt.lyricsArr.length-1])opt.lyricsArr.pop();}
   const L=CORE.layout(sc,opt);
   const S=3,jpegs=[];
   st.urls.forEach(u=>URL.revokeObjectURL(u));st.urls=[];
@@ -768,7 +748,7 @@ async function makeSheet(){
   const pdf=CORE.buildPDF(jpegs,CORE.PW*S,CORE.PH*S);
   st.pdf=new Blob([pdf],{type:'application/pdf'});
   st.pdfName=(opt.title.replace(/[\\/:*?"<>|]+/g,'').trim()||'Sheet music')+'.pdf';
-  $('info').textContent='Tempo guess: '+(parseFloat($('bpm').value)?'your '+bpm:st.detBpm)+' BPM, key of '+sc.keyName+'. If the notes look twice as fast or slow as the song, tap ½× or 2×. Tap “Play” to hear what was detected.';
+  $('info').textContent='Key of '+sc.keyName+', about '+bpm+' BPM. If the notes look twice as fast or slow as the song, open More options and tap ½× or 2×.';
   $('share').hidden=!(navigator.canShare&&navigator.canShare({files:[new File([st.pdf],st.pdfName,{type:'application/pdf'})]}));
   $('result').hidden=false;
   $('result').scrollIntoView({behavior:'smooth',block:'start'});
